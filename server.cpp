@@ -33,7 +33,7 @@ int main(int argc, char *argv[])
 
   int port = atoi(argv[1]);
   int buffer_size = 256;
-  int nodelay_enabled = 0;
+  int nodelay_enabled = 1;
   if (argc > 2)
     buffer_size = atoi(argv[2]);
   if (argc > 3)

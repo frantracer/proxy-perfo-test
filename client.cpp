@@ -37,7 +37,7 @@ int main(int argc, char** argv) {
   char* filepath = argv[3];
   int n_repetitions = atoi(argv[4]);
   int buffer_size = 256;
-  int nodelay_enabled = 0;
+  int nodelay_enabled = 1;
   if (argc > 5)
     buffer_size = atoi(argv[5]);
   if (argc > 6)

@@ -2,18 +2,21 @@
 use IO::Socket::Forwarder qw(forward_sockets);
 use IO::Socket::INET;
 use IO::Socket::SSL;
+use Socket qw(IPPROTO_TCP TCP_NODELAY);
 use Getopt::Long;
 
 my $local_ssl_enabled = 0;
 my $remote_ssl_enabled = 0;
 my $proxy_buffer_size = 64 * 1024;
 my $proxy_chunk_size = 16 * 1024;
+my $tcp_nodelay_enabled = 1;
 
 GetOptions (
   "buffer-size=i" => \$proxy_buffer_size,
   "chunk-size=i"   => \$proxy_chunk_size,
   "remote-ssl"  => \$remote_ssl_enabled,
   "local-ssl"  => \$local_ssl_enabled,
+  "disable-nodelay!"    => \$tcp_nodelay_enabled,
 );
 
 my $local_port = shift;
@@ -36,6 +39,8 @@ if($remote_ssl_enabled) {
   );
 }
 defined($remote_socket) or die "Unable to connect to $remote_host";
+$remote_socket->setsockopt(IPPROTO_TCP, TCP_NODELAY, $tcp_nodelay_enabled)
+  or die "Cannot set tcp nodelay to remote socket";
 
 # Socket listening to local application
 my $local_socket = undef;
@@ -59,6 +64,8 @@ if($local_ssl_enabled) {
   );
   $new_socket = $local_socket->accept() or die "Connection failed";
 }
+$new_socket->setsockopt(IPPROTO_TCP, TCP_NODELAY, $tcp_nodelay_enabled)
+  or die "Cannot set tcp nodelay to local socket";
 
 # Forward sockets
 forward_sockets(
