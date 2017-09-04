@@ -2,12 +2,23 @@
 use IO::Socket::Forwarder qw(forward_sockets);
 use IO::Socket::INET;
 use IO::Socket::SSL;
+use Getopt::Long;
+
+my $local_ssl_enabled = 0;
+my $remote_ssl_enabled = 0;
+my $proxy_buffer_size = 64 * 1024;
+my $proxy_chunk_size = 16 * 1024;
+
+GetOptions (
+  "buffer-size=i" => \$proxy_buffer_size,
+  "chunck-size=i"   => \$proxy_chunk_size,
+  "remote-ssl"  => \$remote_ssl_enabled,
+  "local-ssl"  => \$local_ssl_enabled,
+);
 
 my $local_port = shift;
 my $remote_address = shift;
 my $remote_port = shift;
-my $local_ssl_enabled = shift // 0;
-my $remote_ssl_enabled = shift // 0;
 
 # Socket connected to remote application
 my $remote_socket = undef;
@@ -53,5 +64,7 @@ if($local_ssl_enabled) {
 forward_sockets(
   $new_socket,
   $remote_socket,
+  io_buffer_size => $proxy_buffer_size,
+  io_chunk_size => $proxy_chunk_size
 );
 
