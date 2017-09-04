@@ -7,8 +7,8 @@
 #include <sys/types.h> 
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
-
 
 using namespace std;
 
@@ -28,10 +28,16 @@ int main(int argc, char *argv[])
 
   // Read arguments
   if (argc < 2) {
-    perr("No port provided");
+    perr("Usage:\n" + string(argv[0]) + " <port> [<buffer_size>] [<nodelay_enabled>]");
   }
 
   int port = atoi(argv[1]);
+  int buffer_size = 256;
+  int nodelay_enabled = 0;
+  if (argc > 2)
+    buffer_size = atoi(argv[2]);
+  if (argc > 3)
+    nodelay_enabled = atoi(argv[3]);
 
   // Open socket
   int server_sockfd =  socket(AF_INET, SOCK_STREAM, 0);
@@ -64,10 +70,13 @@ int main(int argc, char *argv[])
   sprintf(msg_buffer, "New connection from %s port %d", inet_ntoa(client_addr.sin_addr), ntohs(client_addr.sin_port));
   pdebug(msg_buffer);
 
+  // Enable TCP NODELAY whether required
+  int result = setsockopt(client_sockfd, IPPROTO_TCP, TCP_NODELAY, (char *) &nodelay_enabled, sizeof(nodelay_enabled));
+
   // Recieve message from the client
-  char buffer[256];
+  char* buffer = new char[buffer_size];
   int n;
-  while( (n = read(client_sockfd, buffer, sizeof(buffer))) > 0) {
+  while( (n = read(client_sockfd, buffer, buffer_size)) > 0) {
 
     pdebug("ECHO: " + string(buffer));
 
@@ -75,13 +84,15 @@ int main(int argc, char *argv[])
     write(client_sockfd, buffer, n);
 
     // Clean buffer
-    bzero(buffer, sizeof(buffer));
+    bzero(buffer, buffer_size);
 
   }
 
   if (n < 0) {
     perr("Cannot read from socket");
   }
+
+  delete buffer;
  
   // Close connection
   close(client_sockfd);

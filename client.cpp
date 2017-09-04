@@ -8,6 +8,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <netinet/tcp.h>
 #include <arpa/inet.h>
 #include <chrono>
 
@@ -28,11 +29,21 @@ int main(int argc, char** argv) {
 
   // Read arguments
   if (argc < 5) {
-    perr("Usage:\n" + string(argv[0]) + " <hostname> <port> <file> <repetitions>");
+    perr("Usage:\n" + string(argv[0]) + " <hostname> <port> <file> <repetitions> [<buffer_size>] [<nodelay_enabled>]");
   }
 
+  char* hostname = argv[1];
   int port = atoi(argv[2]);
+  char* filepath = argv[3];
   int n_repetitions = atoi(argv[4]);
+  int buffer_size = 256;
+  int nodelay_enabled = 0;
+  if (argc > 5)
+    buffer_size = atoi(argv[5]);
+  if (argc > 6)
+    nodelay_enabled = atoi(argv[6]);
+
+  // Initialise time measurement variables
   double* time_measurements = new double[n_repetitions];
   double total_elapsed_time = 0;
   double max_elapsed_time = -DBL_MAX;
@@ -49,15 +60,18 @@ int main(int argc, char** argv) {
   bzero((char *) &server_addr, sizeof(server_addr));
   server_addr.sin_family = AF_INET;
   server_addr.sin_port = htons(port);
-  inet_pton(AF_INET, argv[1], &server_addr.sin_addr);
+  inet_pton(AF_INET, hostname, &server_addr.sin_addr);
 
   // Connect to server
   if (connect(server_sockfd, (struct sockaddr *) &server_addr, sizeof(server_addr)) < 0) { 
     perr("Problem while connecting");
   }
 
-  char file_buffer[256];
-  char socket_buffer[256];
+  // Enable TCP NODELAY whether required
+  int result = setsockopt(server_sockfd, IPPROTO_TCP, TCP_NODELAY, (char *) &nodelay_enabled, sizeof(nodelay_enabled));
+
+  char* file_buffer = new char[buffer_size]();
+  char* socket_buffer= new char[buffer_size]();
   int n;
  
   // Start loop
@@ -67,7 +81,7 @@ int main(int argc, char** argv) {
     pdebug(msg_buffer);
 
     // Open file description
-    ifstream file_stream(argv[3]);
+    ifstream file_stream(filepath);
 
     if(file_stream) {
 
@@ -76,7 +90,7 @@ int main(int argc, char** argv) {
       while(!file_stream.eof()) {
 
         // Read file chunk
-        file_stream.read(file_buffer, sizeof(file_buffer));
+        file_stream.read(file_buffer, buffer_size);
         n = file_stream.gcount();
 
         // Send to the server
@@ -86,14 +100,14 @@ int main(int argc, char** argv) {
         }
 
         // Receive from the server
-        n = read(server_sockfd, socket_buffer, sizeof(socket_buffer));
+        n = read(server_sockfd, socket_buffer, buffer_size);
         if (n < 0) {
           perr("Problem while reading from socket");
         }
 
         // Clean buffers 
-        bzero(file_buffer, sizeof(file_buffer));
-        bzero(socket_buffer, sizeof(socket_buffer));
+        bzero(file_buffer, buffer_size);
+        bzero(socket_buffer, buffer_size);
 
       }
 
@@ -119,6 +133,10 @@ int main(int argc, char** argv) {
     }
 
   }
+
+
+  delete file_buffer;
+  delete socket_buffer;
 
   // Close server socket
   close(server_sockfd);
