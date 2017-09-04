@@ -11,7 +11,7 @@ my $proxy_chunk_size = 16 * 1024;
 
 GetOptions (
   "buffer-size=i" => \$proxy_buffer_size,
-  "chunck-size=i"   => \$proxy_chunk_size,
+  "chunk-size=i"   => \$proxy_chunk_size,
   "remote-ssl"  => \$remote_ssl_enabled,
   "local-ssl"  => \$local_ssl_enabled,
 );
