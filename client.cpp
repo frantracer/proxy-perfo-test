@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <string.h>
 #include <float.h>
+#include <math.h>
+#include <list>
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
@@ -14,6 +16,7 @@
 
 using namespace std;
 
+/* Output messages functions */
 void perr(string msg) {
   cout << "[ERROR] " << msg << endl;
   exit(1);
@@ -23,6 +26,41 @@ void pdebug(string msg) {
   cerr << "[DEBUG] " << msg << endl;
 }
 
+/* Statistic generation */
+template <class T>
+class Statistics {
+  public:
+  T minimum, maximum, average, std_deviation, total;
+  Statistics(list<T>* values) {
+    this->minimum = 0;
+    this->maximum = 0;
+    this->average = 0;
+    this->std_deviation = 0;
+    this->total = 0;
+    if (values->size() > 0) {
+      typename list<T>::iterator it = values->begin();
+      this->minimum = *it;
+      this->maximum = *it;
+      while(it != values->end()){
+        this->total += *it;
+        if(*it < this->minimum)
+          this->minimum = *it;
+        if(*it > this->maximum)
+          this->maximum = *it;
+        ++it;
+      }
+      this->average = this->total / values->size();
+      T tmp = 0;
+      for (it = values->begin(); it != values->end(); ++it) {
+        tmp = *it - this->average;
+        this->std_deviation += (tmp * tmp);
+      }
+      this->std_deviation = sqrt(this->std_deviation / values->size());
+    }
+  }
+};
+
+/***** MAIN *****/
 int main(int argc, char** argv) {
 
   char msg_buffer[1024];
@@ -44,10 +82,8 @@ int main(int argc, char** argv) {
     nodelay_enabled = atoi(argv[6]);
 
   // Initialise time measurement variables
-  double* time_measurements = new double[n_repetitions];
-  double total_elapsed_time = 0;
-  double max_elapsed_time = -DBL_MAX;
-  double min_elapsed_time = DBL_MAX;
+  list<double> time_measurements(0);
+  double elapsed_time = 0;
 
   // Create scoket
   int server_sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -85,9 +121,9 @@ int main(int argc, char** argv) {
 
     if(file_stream) {
 
-      chrono::system_clock::time_point begin = chrono::system_clock::now();
-
       while(!file_stream.eof()) {
+
+        chrono::system_clock::time_point begin = chrono::system_clock::now();
 
         // Read file chunk
         file_stream.read(file_buffer, buffer_size);
@@ -109,21 +145,14 @@ int main(int argc, char** argv) {
         bzero(file_buffer, buffer_size);
         bzero(socket_buffer, buffer_size);
 
+        // Measure time elapsed
+        chrono::system_clock::time_point end = chrono::system_clock::now();
+        chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(end - begin);
+        elapsed_time = time_span.count();
+
+        time_measurements.push_back(elapsed_time);
+
       }
-
-      // Measure time elapsed
-      chrono::system_clock::time_point end = chrono::system_clock::now();
-      chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(end - begin);
-      double elapsed_time = time_span.count();
-      total_elapsed_time += elapsed_time;
-      if(elapsed_time < min_elapsed_time)
-        min_elapsed_time = elapsed_time;
-      if(elapsed_time > max_elapsed_time)
-        max_elapsed_time = elapsed_time;
-      time_measurements[i-1] = elapsed_time;
-
-      sprintf(msg_buffer, "Iteration %d elapsed time is %f secs", i, elapsed_time);
-      pdebug(msg_buffer);
 
       // Close file
       file_stream.close();
@@ -134,19 +163,19 @@ int main(int argc, char** argv) {
 
   }
 
-
   delete file_buffer;
   delete socket_buffer;
 
   // Close server socket
   close(server_sockfd);
 
-  cout << "Min\t\tMax\t\tAverage\t\tTotal" << endl;
-  cout << min_elapsed_time << "\t" << max_elapsed_time << "\t" << 
-    total_elapsed_time / n_repetitions << "\t" << total_elapsed_time << endl;
-
-  delete time_measurements;
+  Statistics<double>* stats = new Statistics<double>(&time_measurements);
+  printf("Min\t\tMax\t\tAverage\t\tStd.Dev\t\tTotal\t\tCount\n");
+  printf("%.5e\t%.5e\t%.5e\t%.5e\t%.9f\t%lu\n", stats->minimum, stats->maximum,
+    stats->average, stats->std_deviation, stats->total, time_measurements.size());
+  delete stats;
 
   return 0;
 
 }
+
