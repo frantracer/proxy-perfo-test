@@ -108,7 +108,7 @@ int main(int argc, char** argv) {
 
   char* file_buffer = new char[buffer_size]();
   char* socket_buffer= new char[buffer_size]();
-  int n;
+  int n_bytes_read, n_bytes_sent, n_bytes_received;
  
   // Start loop
   for (int i = 1; i <= n_repetitions; ++i) {
@@ -127,18 +127,24 @@ int main(int argc, char** argv) {
 
         // Read file chunk
         file_stream.read(file_buffer, buffer_size);
-        n = file_stream.gcount();
+        n_bytes_read = file_stream.gcount();
 
         // Send to the server
-        n = write(server_sockfd, file_buffer, n);
-        if (n < 0) {
+        n_bytes_sent = write(server_sockfd, file_buffer, n_bytes_read);
+        if (n_bytes_sent < 0) {
           perr("Problem while writing to socket");
         }
 
         // Receive from the server
-        n = read(server_sockfd, socket_buffer, buffer_size);
-        if (n < 0) {
+        n_bytes_received = read(server_sockfd, socket_buffer, buffer_size);
+        if (n_bytes_received < 0) {
           perr("Problem while reading from socket");
+        }
+
+        // Check message recieved
+        if (n_bytes_sent != n_bytes_received) {
+          sprintf(msg_buffer, "Bytes sent (%d) are not the same as received (%d)", n_bytes_sent, n_bytes_received);
+          perr(msg_buffer);
         }
 
         // Clean buffers 
