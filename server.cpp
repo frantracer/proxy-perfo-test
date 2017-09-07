@@ -28,16 +28,19 @@ int main(int argc, char *argv[])
 
   // Read arguments
   if (argc < 2) {
-    perr("Usage:\n" + string(argv[0]) + " <port> [<buffer_size>] [<nodelay_enabled>]");
+    perr("Usage:\n" + string(argv[0]) + " <port> [<buffer_size>] [<echo_enabled>] [<nodelay_enabled>]");
   }
 
   int port = atoi(argv[1]);
   int buffer_size = 256;
+  int echo_enabled = 1;
   int nodelay_enabled = 1;
   if (argc > 2)
     buffer_size = atoi(argv[2]);
   if (argc > 3)
-    nodelay_enabled = atoi(argv[3]);
+    echo_enabled = atoi(argv[3]);
+  if (argc > 4)
+    nodelay_enabled = atoi(argv[4]);
 
   // Open socket
   int server_sockfd =  socket(AF_INET, SOCK_STREAM, 0);
@@ -80,8 +83,10 @@ int main(int argc, char *argv[])
 
     pdebug("ECHO: " + string(buffer));
 
-    // Send message to the client
-    write(client_sockfd, buffer, n);
+    if(echo_enabled) {
+      // Send message to the client
+      write(client_sockfd, buffer, n);
+    }
 
     // Clean buffer
     bzero(buffer, buffer_size);

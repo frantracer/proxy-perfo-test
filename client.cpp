@@ -67,7 +67,7 @@ int main(int argc, char** argv) {
 
   // Read arguments
   if (argc < 5) {
-    perr("Usage:\n" + string(argv[0]) + " <hostname> <port> <file> <repetitions> [<buffer_size>] [<nodelay_enabled>]");
+    perr("Usage:\n" + string(argv[0]) + " <hostname> <port> <file> <repetitions> [<buffer_size>] [<echo_enabled>] [<nodelay_enabled>]");
   }
 
   char* hostname = argv[1];
@@ -75,11 +75,14 @@ int main(int argc, char** argv) {
   char* filepath = argv[3];
   int n_repetitions = atoi(argv[4]);
   int buffer_size = 256;
+  int echo_enabled = 1;
   int nodelay_enabled = 1;
   if (argc > 5)
     buffer_size = atoi(argv[5]);
   if (argc > 6)
-    nodelay_enabled = atoi(argv[6]);
+    echo_enabled = atoi(argv[6]);
+  if (argc > 7)
+    nodelay_enabled = atoi(argv[7]);
 
   // Initialise time measurement variables
   list<double> time_measurements(0);
@@ -135,16 +138,18 @@ int main(int argc, char** argv) {
           perr("Problem while writing to socket");
         }
 
-        // Receive from the server
-        n_bytes_received = read(server_sockfd, socket_buffer, buffer_size);
-        if (n_bytes_received < 0) {
-          perr("Problem while reading from socket");
-        }
+        if(echo_enabled) {
+          // Receive from the server
+          n_bytes_received = read(server_sockfd, socket_buffer, buffer_size);
+          if (n_bytes_received < 0) {
+            perr("Problem while reading from socket");
+          }
 
-        // Check message recieved
-        if (n_bytes_sent != n_bytes_received) {
-          sprintf(msg_buffer, "Bytes sent (%d) are not the same as received (%d)", n_bytes_sent, n_bytes_received);
-          perr(msg_buffer);
+          // Check message recieved
+          if (n_bytes_sent != n_bytes_received) {
+            sprintf(msg_buffer, "Bytes sent (%d) are not the same as received (%d)", n_bytes_sent, n_bytes_received);
+            perr(msg_buffer);
+          }
         }
 
         // Clean buffers 
